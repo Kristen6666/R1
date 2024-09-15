@@ -1,0 +1,409 @@
+---
+title: "Kristen_Assignment1"
+author: "Kristen"
+date: "2024-09-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 1: Explore data
+
+1.  Make a histogram of the scores to visualize the overall distribution of scores. Change the number of bins from the default to 10, 15, 20, and 25. Pick on the one that you think looks the best. Explain what the difference is when you change the number of bins and explain why you picked the one you did.
+
+```{r chocolates}
+## Install the tidytuesdayR package if you don't have it
+if (!require("tidytuesdayR", quietly = TRUE)) {
+  install.packages("tidytuesdayR")
+}
+
+## Install the here package if you don't have it
+if (!require("here", quietly = TRUE)) {
+  install.packages("here")
+}
+
+## For the GitHub version of tidytuesdayR (in case the CRAN version is not available)
+## you'll need the "remotes" package to install it.
+## See for example https://github.com/dslc-io/tidytuesdayR/issues/94 which led
+## to tidytuesdayR not been available from CRAN at the end of August 2024
+
+## Install the remotes package if you don't have it
+if (!require("remotes", quietly = TRUE)) {
+  install.packages("remotes")
+}
+## Install the tidytuesdayR package (from GitHub) if you don't have it
+if (!require("tidytuesdayR", quietly = TRUE)) {
+  remotes::install_github("dslc-io/tidytuesdayR")
+}
+
+
+library("here")
+library("tidyverse")
+
+# tests if a directory named "data" exists locally
+if (!dir.exists(here("data"))) {
+  dir.create(here("data"))
+}
+
+# saves data only once (not each time you knit a R Markdown)
+if (!file.exists(here("data", "chocolate.RDS"))) {
+  url_csv <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-18/chocolate.csv"
+  chocolate <- readr::read_csv(url_csv)
+  
+  # save the file to RDS objects
+  saveRDS(chocolate, file = here("data", "chocolate.RDS"))
+}
+
+chocolate <- readRDS(here("data", "chocolate.RDS"))
+as_tibble(chocolate)
+glimpse(chocolate)
+
+# 1.build histogram
+# Load ggplot2 for visualization
+library(ggplot2)
+
+# Example histogram with 10 bins(choose this one)
+ggplot(chocolate, aes(x=rating)) +
+  geom_histogram(bins=10, fill="blue", color="black") +
+  ggtitle("Distribution of Chocolate Ratings (10 bins)")
+
+# Example histogram with 15 bins
+ggplot(chocolate, aes(x=rating)) +
+  geom_histogram(bins=15, fill="green", color="black") +
+  ggtitle("Distribution of Chocolate Ratings (15 bins)")
+
+# Example histogram with 20 bins
+ggplot(chocolate, aes(x=rating)) +
+  geom_histogram(bins=20, fill="red", color="black") +
+  ggtitle("Distribution of Chocolate Ratings (20 bins)")
+
+# Example histogram with 25 bins
+ggplot(chocolate, aes(x=rating)) +
+  geom_histogram(bins=25, fill="purple", color="black") +
+  ggtitle("Distribution of Chocolate Ratings (25 bins)")
+
+```
+
+**After looking at these histograms, we can see that 10 bins are the most appropriate. When we increase the number of bins too much, a lot of gaps appear, making the other options less suitable compared to 10 bins.**
+
+2.Consider the countries where the beans originated from. How many reviews come from each country of bean origin?
+
+```{R}
+# 2/3.comments(Ecuador*)
+# Count the number of reviews per country of origin
+# Select specific columns from the dataset
+library(dplyr)
+comments_data <- chocolate %>% 
+  select(country_of_bean_origin)%>%
+  group_by(country_of_bean_origin) %>%
+  summarise(
+    Total_reviews = n())  %>%              # Count
+  arrange(desc(Total_reviews))
+
+# View the result
+print(comments_data)
+```
+
+3.What is average scores from reviews of chocolate bars that have Ecuador as in this dataset? For this same set of reviews, also calculate (1) the total number of reviews and (2) the standard deviation of the scores. Your answer should be a new data frame with these three summary statistics in three columns. Label the name of these columns , , and
+
+```{R}
+library(dplyr)
+comments_data <- chocolate %>% 
+  select(country_of_bean_origin, rating, ref)%>%
+
+  group_by(country_of_bean_origin) %>%
+  summarise(
+    Total_reviews = n(),                      # Count total reviews
+    Rating_Mean = mean(rating, na.rm = TRUE),  # Average rating
+    Rating_sd = sd(rating, na.rm = TRUE)      # Standard deviation of ratings
+  ) %>%
+  arrange(desc(Total_reviews))
+
+# View the result
+print(comments_data)
+print(comments_data %>% filter(country_of_bean_origin == "Ecuador"))
+
+```
+
+4.Which company location makes the best chocolate (or has the highest ratings on average) with beans from Ecuador?
+
+```{R}
+# 4.
+# Filter for chocolate made with Ecuador beans
+ecuador_chocolate <- chocolate %>%
+  filter(country_of_bean_origin == "Ecuador") %>%
+  group_by(company_manufacturer) %>%  # Group by company
+  summarise(avg_rating = mean(rating, na.rm = TRUE)) %>%  # Calculate average rating
+  arrange(desc(avg_rating))  # Sort by highest rating
+
+# View the top company with the highest average rating
+print(head(ecuador_chocolate, 1))  # Display the company with the highest rating
+```
+
+5.Calculate the average rating across all country of origins for beans. Which top 3 countries (for bean origin) have the highest ratings on average?
+
+```{R}
+# 5.
+# Calculate the average rating for each country of bean origin
+average_rating_per_country <- chocolate %>%
+  group_by(country_of_bean_origin) %>%
+  summarise(avg_rating = mean(rating, na.rm = TRUE)) %>%
+  arrange(desc(avg_rating))  # Sort by highest average rating
+
+# View the top 3 countries with the highest average rating
+print(head(average_rating_per_country, 3))
+```
+
+6.Following up on the previous problem, now remove any countries of bean origins that have less than 10 chocolate bar reviews. Now, which top 3 countries have the highest ratings on average?
+
+```{R}
+# 6.
+# delete the country with comments <10
+top_3_countries_filtered <- chocolate %>%
+  group_by(country_of_bean_origin) %>%
+  filter(n() >= 10) %>%
+  summarise(avg_rating = mean(rating, na.rm = TRUE)) %>%
+  arrange(desc(avg_rating)) %>%
+  head(3)
+
+print(top_3_countries_filtered)
+
+```
+
+7.  
+
+```{R}
+# 7.
+# Group by country and filter those with at least 50 reviews
+filtered_data <- chocolate %>%
+  group_by(country_of_bean_origin) %>%
+  filter(n() >= 50)
+
+# Create a new categorical variable for percent chocolate
+filtered_data <- filtered_data %>%
+  mutate(cocoa_category = case_when(
+    cocoa_percent < 60 ~ "<60%",
+    cocoa_percent >= 60 & cocoa_percent < 70 ~ "60-69%",
+    cocoa_percent >= 70 & cocoa_percent < 90 ~ "70-89%",
+    cocoa_percent >= 90 ~ ">=90%"
+  )) 
+
+# Reorder the cocoa categories
+library(forcats)
+filtered_data <- filtered_data %>%
+  mutate(cocoa_category = as.factor(cocoa_category)) %>%
+  mutate(cocoa_category = fct_relevel(cocoa_category, "<60%", "60-69%", "70-89%", ">=90%"))%>%
+  arrange(cocoa_category)
+
+# Create boxplots for each cocoa category
+ggplot(filtered_data, aes(x = cocoa_category, y = rating)) +
+  geom_boxplot() +
+  labs(title = "Rating vs Cocoa Percentage", x = "Cocoa Percentage", y = "Rating") +
+  theme_minimal()
+
+
+```
+
+**On average, chocolate with 70%-89% cocoa content received slightly higher ratings, as the median (the black line in the middle of the box) in its boxplot is positioned higher.**
+
+**The boxes for the \<60% and \>=90% cocoa content groups are longer, and their whiskers are also extended, indicating a wider range of ratings and some level of disagreement. The boxes for the 60%-69% and 70%-89% groups are relatively shorter, suggesting that the ratings are more concentrated, with less disagreement.**
+
+## Part 2: Join two datasets together
+
+```{R}
+# Part 2
+if (!require("gapminder", quietly = TRUE)) {
+  install.packages("gapminder")
+}
+library(gapminder)
+data(gapminder)
+
+# use the contry and continent in gapminder 
+gapminder_continent <- gapminder %>%
+  select(country, continent) %>%
+  distinct() %>%
+  mutate(continent = as.character(continent))
+
+# add together
+chocolate_data <- chocolate %>%
+  left_join(gapminder_continent, by = c("country_of_bean_origin" = "country"))
+
+# check NA
+chocolate_data <- chocolate_data %>%
+  mutate(continent = ifelse(is.na(continent), "Others", continent))
+
+# keep the country with at least 10 comments
+chocolate_data <- chocolate_data %>%
+  group_by(country_of_bean_origin) %>%
+  filter(n() >= 10) %>%
+  ungroup()
+
+# remove "Blend" 
+chocolate_data <- chocolate_data %>%
+  filter(country_of_bean_origin != "Blend")
+
+chocolate_data <- chocolate_data %>%
+  rename(continent_chocolate = continent)
+
+# violin plots
+ggplot(chocolate_data, aes(x = continent_chocolate, y = rating)) +
+  geom_violin(trim = FALSE) +
+  labs(title = "Violin plot of Ratings by Continent", x = "Continent", y = "Rating") +
+  theme_minimal()
+
+```
+
+## Part 3
+
+```{R}
+library(tidyr)
+library(stringr)
+
+# new columns for ingredients
+chocolate_data <- chocolate_data %>%
+  mutate(beans = ifelse(str_detect(ingredients, "B"), 1, 0),
+         cocoa_butter = ifelse(str_detect(ingredients, "C"), 1, 0),
+         vanilla = ifelse(str_detect(ingredients, "V"), 1, 0),
+         letchin = ifelse(str_detect(ingredients, "L"), 1, 0),
+         salt = ifelse(str_detect(ingredients, "Sa"), 1, 0),
+         sugar = ifelse(str_detect(ingredients, "S"), 1, 0))
+
+# new columns for characteristics
+chocolate_data <- chocolate_data %>%
+  mutate(char_cocoa = ifelse(str_detect(most_memorable_characteristics, "cocoa"), 1, 0),
+         char_sweet = ifelse(str_detect(most_memorable_characteristics, "sweet"), 1, 0),
+         char_nutty = ifelse(str_detect(most_memorable_characteristics, "nutty"), 1, 0),
+         char_creamy = ifelse(str_detect(most_memorable_characteristics, "creamy"), 1, 0),
+         char_roasty = ifelse(str_detect(most_memorable_characteristics, "roasty"), 1, 0),
+         char_earthy = ifelse(str_detect(most_memorable_characteristics, "earthy"), 1, 0))
+
+# calculate mean by year
+mean_c_by_year <- chocolate_data %>%
+  group_by(review_date) %>%
+  summarise(across(c(beans, sugar, cocoa_butter, vanilla, letchin, salt,
+                     char_cocoa, char_sweet, char_nutty, char_creamy, char_roasty, char_earthy),
+                   mean, na.rm = TRUE))
+
+# long data
+long_data <- mean_c_by_year %>%
+  pivot_longer(cols = -review_date, 
+               names_to = "feature", 
+               values_to = "mean_score")
+print(long_data)
+
+```
+
+## Part 4
+
+```{R}
+# use long_data
+# draw scatter diagram and add smooth curve by feature
+ggplot(long_data, aes(x = review_date, y = mean_score)) +
+  geom_point(alpha = 0.5) +  # 绘制散点图，alpha 设置透明度
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +  # 添加平滑曲线
+  facet_wrap(~ feature, scales = "free_y") +  # 按 feature 分面显示，每个 feature 一个图
+  labs(title = "Mean Score Trend Over Time for Different Features",  # 添加总标题
+       subtitle = "Each panel represents a different chocolate feature",
+       x = "Review Date",  # x 
+       y = "Mean Score") +  # y 
+  theme_minimal()  
+```
+
+## Part 5
+
+```{R}
+# Part 5
+# long_data
+ggplot(long_data, aes(x = review_date, y = mean_score)) +
+  
+  # 错误1：使用不合适的颜色组合
+  geom_point(color = "black", size = 5) +  # 使用没有辨识度的黑色
+  
+  # 错误2：使用不相关的平滑曲线颜色
+  geom_smooth(method = "loess", se = F, color = "grey") +  # 使用不合适的灰色
+  
+  # 错误3：完全不相关的图表标题
+  labs(title = "Chocolate Bar Ratings from Another Dimension", 
+       subtitle = "A journey through time and space of cocoa") +  # 与数据无关的标题和副标题
+  
+  # 错误4：没有任何轴标签，读者不知道x轴和y轴表示什么
+  xlab("") +  # 空的x轴标签
+  ylab("") +  # 空的y轴标签
+  
+  # 错误5：使 x 轴和 y 轴文本旋转 90 度，导致很难阅读
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.text.y = element_text(angle = 90, vjust = 1)) +
+  
+  # 错误6：将图例放在错误的位置并使其过度拥挤
+  theme(legend.position = "top", legend.background = element_rect(fill = "neon yellow")) +
+  
+  # 错误7：使用粗糙的、过于突兀的网格线
+  theme(panel.grid.major = element_line(color = "black", size = 2),
+        panel.grid.minor = element_line(color = "darkred", size = 1)) +
+  
+  # 分面错误处理，使得分面过于繁杂
+  facet_wrap(~ feature, scales = "fixed")  # 错误地使用固定尺度，导致比较失真
+```
+
+1.  **Code: `geom_point(color = "black", size = 5)` Error: Using black as the color for the data points makes it difficult to differentiate between them, especially against darker backgrounds. Black provides no contrast or distinction, making the points less visible and meaningful. Irrelevant Color for Smoothing Line:**
+
+2.  **Code: `geom_smooth(method = "loess", se = F, color = "grey")` Error: The grey color for the smoothing line is unappealing and blends with the background, reducing visibility. It doesn't provide a clear distinction or highlight the trend in the data. Unrelated Chart Title:**
+
+3.  **Code: `labs(title = "Chocolate Bar Ratings from Another Dimension", subtitle = "A journey through time and space of cocoa")` Error: The title and subtitle are completely unrelated to the data being visualized, which confuses the reader and distracts from the actual content of the chart. No Axis Labels:**
+
+4.  **Code: `xlab("") + ylab("")` Error: The x-axis and y-axis have no labels, so the audience cannot understand what the axes represent. This leaves the chart without context or explanation of the data. Inconvenient Axis Text Rotation:**
+
+5.  **Code: `theme(axis.text.x = element_text(angle = 90, hjust = 1), axis.text.y = element_text(angle = 90, vjust = 1))` Error: Both the x and y axis text are rotated 90 degrees, making them hard to read. This forces the audience to tilt their heads or struggle with interpreting the data. Poorly Positioned and Overcrowded Legend:**
+
+6.  **Code: `theme(legend.position = "top", legend.background = element_rect(fill = "neon yellow"))` Error: Placing the legend at the top makes the chart crowded and difficult to read, especially with the neon yellow background that is visually overwhelming and distracting. Harsh and Distracting Gridlines:**
+
+7.  **Code: `theme(panel.grid.major = element_line(color = "black", size = 2), panel.grid.minor = element_line(color = "darkred", size = 1))` Error: The gridlines are too thick and prominent, with dark, overly contrasting colors (black and dark red). This causes unnecessary visual noise and detracts from the data itself. Inappropriate Use of Fixed Scales in Facets:**
+
+8.  **Code: `facet_wrap(\~ feature, scales = "fixed")` Error: Using fixed scales in facets can cause distortion when comparing different features with varying ranges. This makes it harder to compare data effectively across facets because some features may not fit properly within the scale limits, leading to misleading representations.**
+
+## Part 6
+
+```{R}
+ggplot(chocolate, aes(x = as.factor(review_date), y = rating, fill = review_date)) +
+  geom_violin() +
+  
+  # 1. add topic
+  labs(
+    title = "Distribution of Chocolate Ratings Over Time",
+    subtitle = "Visualizing the spread of chocolate ratings for each year",
+    x = "Review Year",  # 2. x
+    y = "Rating",       # 3. y
+    fill = "Review Date"  # 4. topic
+  ) +
+  
+  # 5. clear color
+  scale_fill_viridis_c(option = "C", begin = 0.2, end = 0.8) +  
+  
+  # 6. font
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),  # 
+    plot.subtitle = element_text(size = 14, hjust = 0.5),  # 
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),  # 
+    legend.position = "right",  # 7. right
+    panel.grid.minor = element_blank()  
+  )
+```
+
+**1. Add title and subtitle**
+
+**2. Add x-axis label**
+
+**3. Add y-axis label**
+
+**4. Add a title for the legend**
+
+**5. Optimize the color scheme: Use a color gradient to make the distinction between different years more apparent**
+
+**6. Adjust x-axis labels: Rotate and shrink the font of the x-axis labels to avoid overlapping**
+
+**7. Adjust the legend position: Place the legend on the right**
+
+**8. Remove minor gridlines to reduce visual distractions**
